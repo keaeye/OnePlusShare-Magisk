@@ -1,0 +1,305 @@
+# space
+ui_print " "
+
+# var
+UID=`id -u`
+[ ! "$UID" ] && UID=0
+FIRARCH=`grep_get_prop ro.bionic.arch`
+SECARCH=`grep_get_prop ro.bionic.2nd_arch`
+ABILIST=`grep_get_prop ro.product.cpu.abilist`
+if [ ! "$ABILIST" ]; then
+  ABILIST=`grep_get_prop ro.system.product.cpu.abilist`
+fi
+if [ "$FIRARCH" == arm64 ]\
+&& ! echo "$ABILIST" | grep -q arm64-v8a; then
+  if [ "$ABILIST" ]; then
+    ABILIST="$ABILIST,arm64-v8a"
+  else
+    ABILIST=arm64-v8a
+  fi
+fi
+if [ "$FIRARCH" == x64 ]\
+&& ! echo "$ABILIST" | grep -q x86_64; then
+  if [ "$ABILIST" ]; then
+    ABILIST="$ABILIST,x86_64"
+  else
+    ABILIST=x86_64
+  fi
+fi
+if [ "$SECARCH" == arm ]\
+&& ! echo "$ABILIST" | grep -q armeabi; then
+  if [ "$ABILIST" ]; then
+    ABILIST="$ABILIST,armeabi"
+  else
+    ABILIST=armeabi
+  fi
+fi
+if [ "$SECARCH" == arm ]\
+&& ! echo "$ABILIST" | grep -q armeabi-v7a; then
+  if [ "$ABILIST" ]; then
+    ABILIST="$ABILIST,armeabi-v7a"
+  else
+    ABILIST=armeabi-v7a
+  fi
+fi
+if [ "$SECARCH" == x86 ]\
+&& ! echo "$ABILIST" | grep -q x86; then
+  if [ "$ABILIST" ]; then
+    ABILIST="$ABILIST,x86"
+  else
+    ABILIST=x86
+  fi
+fi
+ABILIST32=`grep_get_prop ro.product.cpu.abilist32`
+if [ ! "$ABILIST32" ]; then
+  ABILIST32=`grep_get_prop ro.system.product.cpu.abilist32`
+fi
+if [ "$SECARCH" == arm ]\
+&& ! echo "$ABILIST32" | grep -q armeabi; then
+  if [ "$ABILIST32" ]; then
+    ABILIST32="$ABILIST32,armeabi"
+  else
+    ABILIST32=armeabi
+  fi
+fi
+if [ "$SECARCH" == arm ]\
+&& ! echo "$ABILIST32" | grep -q armeabi-v7a; then
+  if [ "$ABILIST32" ]; then
+    ABILIST32="$ABILIST32,armeabi-v7a"
+  else
+    ABILIST32=armeabi-v7a
+  fi
+fi
+if [ "$SECARCH" == x86 ]\
+&& ! echo "$ABILIST32" | grep -q x86; then
+  if [ "$ABILIST32" ]; then
+    ABILIST32="$ABILIST32,x86"
+  else
+    ABILIST32=x86
+  fi
+fi
+if [ ! "$ABILIST32" ]; then
+  [ -f /system/lib/libandroid.so ] && ABILIST32=true
+fi
+
+# log
+if [ "$BOOTMODE" != true ]; then
+  FILE=/data/media/"$UID"/$MODID\_recovery.log
+  ui_print "- Log will be saved at $FILE"
+  exec 2>$FILE
+  ui_print " "
+fi
+
+# optionals
+OPTIONALS=/data/media/"$UID"/optionals.prop
+if [ ! -f $OPTIONALS ]; then
+  touch $OPTIONALS
+fi
+
+# debug
+if [ "`grep_prop debug.log $OPTIONALS`" == 1 ]; then
+  ui_print "- The install log will contain detailed information"
+  set -x
+  ui_print " "
+fi
+
+# recovery
+if [ "$BOOTMODE" != true ]; then
+  MODPATH_UPDATE=`echo $MODPATH | sed 's|modules/|modules_update/|g'`
+  rm -f $MODPATH/update
+  rm -rf $MODPATH_UPDATE
+fi
+
+# run
+. $MODPATH/function.sh
+
+# info
+MODVER=`grep_prop version $MODPATH/module.prop`
+MODVERCODE=`grep_prop versionCode $MODPATH/module.prop`
+ui_print " ID=$MODID"
+ui_print " Version=$MODVER"
+ui_print " VersionCode=$MODVERCODE"
+if [ "$KSU" == true ]; then
+  ui_print " KSUVersion=$KSU_VER"
+  ui_print " KSUVersionCode=$KSU_VER_CODE"
+  ui_print " KSUKernelVersionCode=$KSU_KERNEL_VER_CODE"
+else
+  ui_print " MagiskVersion=$MAGISK_VER"
+  ui_print " MagiskVersionCode=$MAGISK_VER_CODE"
+fi
+ui_print " "
+
+# architecture
+if [ "$ABILIST" ]; then
+  ui_print "- $ABILIST architecture"
+  ui_print " "
+fi
+NAME=arm64-v8a
+NAME2=armeabi-v7a
+if ! echo "$ABILIST" | grep -Eq "$NAME|$NAME2"; then
+  if [ "$BOOTMODE" == true ]; then
+    ui_print "! This ROM doesn't support $NAME"
+    ui_print "  nor $NAME2 architecture"
+  else
+    ui_print "! This Recovery doesn't support $NAME"
+    ui_print "  nor $NAME2 architecture"
+    ui_print "  Try to install via Magisk app instead"
+  fi
+  rm -rf $MODPATH/system*/lib*\
+   $MODPATH/system*/vendor/lib*
+fi
+if ! echo "$ABILIST" | grep -q $NAME; then
+  rm -rf `find $MODPATH/system -type d -name *64*`
+  if [ "$BOOTMODE" != true ]; then
+    ui_print "! This Recovery doesn't support $NAME architecture"
+    ui_print "  Try to install via Magisk app instead"
+    ui_print " "
+  fi
+fi
+if ! echo "$ABILIST" | grep -q $NAME2; then
+  rm -rf $MODPATH/system*/lib\
+   $MODPATH/system*/vendor/lib
+  if [ "$BOOTMODE" != true ]; then
+    ui_print "! This Recovery doesn't support $NAME2 architecture"
+    ui_print "  Try to install via Magisk app instead"
+    ui_print " "
+  fi
+fi
+
+# sdk
+NUM=28
+if [ "$API" -lt $NUM ]; then
+  ui_print "! Unsupported SDK $API."
+  ui_print "  You have to upgrade your Android version"
+  ui_print "  at least SDK $NUM to use this module."
+  abort
+else
+  ui_print "- SDK $API"
+  ui_print " "
+fi
+
+# recovery
+mount_partitions_in_recovery
+
+# magisk
+magisk_setup
+
+# path
+SYSTEM=`realpath $MIRROR/system`
+VENDOR=`realpath $MIRROR/vendor`
+PRODUCT=`realpath $MIRROR/product`
+SYSTEM_EXT=`realpath $MIRROR/system_ext`
+ODM=`realpath $MIRROR/odm`
+MY_PRODUCT=`realpath $MIRROR/my_product`
+
+# function
+file_check_system_abort() {
+for FILE in $FILES; do
+  DESS="$SYSTEM$FILE $SYSTEM_EXT$FILE"
+  for DES in $DESS; do
+    if [ -f $DES ]; then
+      ui_print "! This ROM already has"
+      ui_print "$DES"
+      abort
+    fi
+  done
+done
+}
+file_check_system() {
+for FILE in $FILES; do
+  DESS="$SYSTEM$FILE $SYSTEM_EXT$FILE"
+  for DES in $DESS; do
+    if [ -f $DES ]; then
+      ui_print "- Detected"
+      ui_print "$DES"
+      rm -f $MODPATH/system$FILE
+      ui_print " "
+    fi
+  done
+done
+}
+file_check_vendor() {
+for FILE in $FILES; do
+  DESS="$VENDOR$FILE $ODM$FILE"
+  for DES in $DESS; do
+    if [ -f $DES ]; then
+      ui_print "- Detected"
+      ui_print "$DES"
+      rm -f $MODPATH/system/vendor$FILE
+      ui_print " "
+    fi
+  done
+done
+}
+
+# check
+LISTS=`ls $MODPATH/system/framework | grep .apk`
+FILES=`for LIST in $LISTS; do echo /framework/$LIST; done`
+file_check_system_abort
+if [ "$IS64BIT" == true ]; then
+  LISTS=`ls $MODPATH/system/lib64`
+  FILES=`for LIST in $LISTS; do echo /lib64/$LIST; done`
+  file_check_system
+  LISTS=`ls $MODPATH/system/vendor/lib64`
+  FILES=`for LIST in $LISTS; do echo /lib64/$LIST; done`
+  file_check_vendor
+fi
+if [ "$ABILIST32" ]; then
+  LISTS=`ls $MODPATH/system/lib`
+  FILES=`for LIST in $LISTS; do echo /lib/$LIST; done`
+  file_check_system
+  LISTS=`ls $MODPATH/system/vendor/lib`
+  FILES=`for LIST in $LISTS; do echo /lib/$LIST; done`
+  file_check_vendor
+fi
+
+# cleaning
+ui_print "- Cleaning..."
+PKGS=`cat $MODPATH/package.txt`
+if [ "$BOOTMODE" == true ]; then
+  for PKG in $PKGS; do
+    FILE=`find /data/app -name *$PKG*`
+    if [ "$FILE" ]; then
+      RES=`pm uninstall $PKG 2>/dev/null`
+    fi
+  done
+fi
+remove_sepolicy_rule
+ui_print " "
+
+# function
+cleanup() {
+if [ -f $DIR/uninstall.sh ]; then
+  sh $DIR/uninstall.sh
+fi
+DIR=/data/adb/modules_update/$MODID
+if [ -f $DIR/uninstall.sh ]; then
+  sh $DIR/uninstall.sh
+fi
+}
+
+# cleanup
+DIR=/data/adb/modules/$MODID
+FILE=$DIR/module.prop
+PREVMODNAME=`grep_prop name $FILE`
+if [ "`grep_prop data.cleanup $OPTIONALS`" == 1 ]; then
+  sed -i 's|^data.cleanup=1|data.cleanup=0|g' $OPTIONALS
+  ui_print "- Cleaning-up $MODID data..."
+  cleanup
+  ui_print " "
+elif [ -d $DIR ]\
+&& [ "$PREVMODNAME" != "$MODNAME" ]; then
+  ui_print "- Different module name is detected"
+  ui_print "  Cleaning-up $MODID data..."
+  cleanup
+  ui_print " "
+fi
+
+# unmount
+unmount_mirror
+
+
+
+
+
+

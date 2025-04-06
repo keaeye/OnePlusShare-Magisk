@@ -1,0 +1,27 @@
+name: Build and Release OnePlusShare
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Zip Module
+        run: |
+          mkdir output
+          zip -r output/OnePlusShare-MagiskModule.zip . -x ".git/*" -x ".github/*"
+
+      - name: Release to GitHub
+        uses: softprops/action-gh-release@v1
+        with:
+          name: OnePlusShare
+          tag_name: ${{ github.ref_name }}
+          files: output/OnePlusShare-MagiskModule.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
