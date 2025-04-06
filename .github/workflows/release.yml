@@ -1,4 +1,4 @@
-name: Build and Release OnePlusShare
+name: Build and Release Magisk Module
 
 on:
   push:
@@ -15,13 +15,13 @@ jobs:
       - name: Zip Module
         run: |
           mkdir output
-          zip -r output/OnePlusShare-MagiskModule.zip . -x ".git/*" -x ".github/*"
+          zip -r output/OnePlusShare-Magisk.zip . -x ".git/*" -x ".github/*"
 
-      - name: Release to GitHub
+      - name: Create Release and Upload
         uses: softprops/action-gh-release@v1
         with:
-          name: OnePlusShare
+          name: OnePlusShare Magisk Module
           tag_name: ${{ github.ref_name }}
-          files: output/OnePlusShare-MagiskModule.zip
+          files: output/OnePlusShare-Magisk.zip
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ONEPLUSSHARE_GITHUB_TOKEN }}
